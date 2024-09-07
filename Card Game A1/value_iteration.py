@@ -28,18 +28,20 @@ def value_iteration(env, gamma=0.9, theta=1e-4):
     Value Iteration Algorithm for policy improvement with updated state variables.
     """
     all_states = generate_all_states(env.n)
-    # print("Number of states: ", len(all_states))
+    print("Number of states: ", len(all_states))
     # print(all_states)
     # return {}, {}
 
     V = defaultdict(float)  # Default value initialization to 0
     policy = {}
     cnt = 0
-
+    
     while True:
         cnt+=1
         delta = 0  # Keep track of maximum change
         changer = None
+        vis = defaultdict(bool)
+
         for state in all_states:
             agent_deck, opponent_deck = state
             agent_deck = list(agent_deck)
@@ -51,7 +53,10 @@ def value_iteration(env, gamma=0.9, theta=1e-4):
                 continue
 
             v = V[state_tuple]
-            best_value = float('-inf')
+            if vis.get(state_tuple, False):
+                best_value = float('-inf')
+            else:
+                best_value = v
 
             for action in range(len(agent_deck)):
                 # Initialize the environment state
@@ -80,14 +85,16 @@ def value_iteration(env, gamma=0.9, theta=1e-4):
                 # print(f"State: {state}, Action: {action}, Reward: {reward}, "
                 #       f"New State: {new_state_tuple}, Value: {action_value}")
 
-            print(f"State: {state}, Changer: {changer}")
+            # print(f"Scenario: {state}, State: {state_tuple}, Changer: {changer}, New v: {best_value}")
             V[state_tuple] = best_value
-            if abs(v - V[state_tuple]) > delta:
-                print("Here exceeded", "Diff:", abs(v - V[state_tuple]), "Scenario:", state, "State:", state_tuple, "Original v:", v, "Modified", V[state_tuple],"Cnt",cnt, "Changer:", changer)
+            # if abs(v - V[state_tuple]) > delta:
+            #     print("Here exceeded", "Diff:", abs(v - V[state_tuple]), "Scenario:", state, "State:", state_tuple, "Original v:", v, "Modified", V[state_tuple],"Cnt",cnt, "Changer:", changer)
             delta = max(delta, abs(v - V[state_tuple]))
 
+        
+        print("Delta: ", delta)
         if delta < theta or cnt > 400:
-            # print("Cnt: ", cnt, "Delta: ", delta)
+            print("Cnt: ", cnt, "Delta: ", delta)
             break
         
         # return V, policy
@@ -95,7 +102,7 @@ def value_iteration(env, gamma=0.9, theta=1e-4):
     return V, policy
 
 
-def value_iteration_main(n=6, gamma=0.2, theta=1e-1):
+def value_iteration_main(n=10, gamma=0.8, theta=1e-1):
     env = CardGameEnv(n)
     V, policy = value_iteration(env, gamma=gamma, theta=theta)
 

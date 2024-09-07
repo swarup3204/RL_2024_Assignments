@@ -73,7 +73,7 @@ def plot_top_n_episodes_rewards(all_rewards, top_n=5):
     plt.show()
 
 
-def td_zero_main(n=8, num_episodes=100000, alpha=0.2, gamma=0.9):
+def td_zero_main(n=20, num_episodes=100000, alpha=0.2, gamma=0.9):
     env = CardGameEnv(n)
 
     # Run TD(0) and get the value function and rewards for all episodes
