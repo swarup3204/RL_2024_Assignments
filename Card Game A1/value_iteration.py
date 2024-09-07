@@ -1,3 +1,8 @@
+#Roll: 20CS30062
+#CAV1
+
+import random
+import matplotlib.pyplot as plt
 from collections import defaultdict
 from itertools import combinations, permutations
 from copy import deepcopy
@@ -17,36 +22,38 @@ def generate_all_states(n):
             remaining_cards = set(cards) - set(agent_deck)
             # Generate all possible opponent decks from remaining cards
             opponent_deck_permutations = list(
-                permutations(remaining_cards, k))  
+                permutations(remaining_cards, k))
             for opponent_deck in opponent_deck_permutations:
                 states.append((agent_deck, opponent_deck))
     return states
 
 
-def value_iteration(env, gamma=0.9, theta=1e-4):
+def value_iteration(env, gamma=0.9, theta=1e-4, n_iterations=500, n_states_to_track=100):
     """
     Value Iteration Algorithm for policy improvement with updated state variables.
     """
     all_states = generate_all_states(env.n)
     print("Number of states: ", len(all_states))
-    # print(all_states)
-    # return {}, {}
 
     V = defaultdict(float)  # Default value initialization to 0
     policy = {}
     cnt = 0
-    
+    random.seed(42)
+
+    tracked_states = []  # List to store 100 randomly selected state tuples
+    tracked_values = {}  # Dictionary to store values for tracked states
+
     while True:
-        cnt+=1
+        cnt += 1
         delta = 0  # Keep track of maximum change
-        changer = None
         vis = defaultdict(bool)
 
         for state in all_states:
             agent_deck, opponent_deck = state
             agent_deck = list(agent_deck)
             opponent_deck = list(opponent_deck)
-            state_tuple = (tuple(agent_deck), opponent_deck[0] if len(opponent_deck) > 0 else -1)
+            state_tuple = (tuple(agent_deck), opponent_deck[0] if len(
+                opponent_deck) > 0 else -1)
 
             if len(agent_deck) == 0:
                 V[state_tuple] = 0  # If no cards left, the value is 0
@@ -62,7 +69,7 @@ def value_iteration(env, gamma=0.9, theta=1e-4):
                 # Initialize the environment state
                 env.state = deepcopy({
                     'agent_deck': agent_deck,
-                    'opponent_card_shown': opponent_deck[0] 
+                    'opponent_card_shown': opponent_deck[0]
                 })
                 env.opponent_deck = deepcopy(opponent_deck)
 
@@ -78,33 +85,51 @@ def value_iteration(env, gamma=0.9, theta=1e-4):
                 if action_value > best_value:
                     best_value = action_value
                     policy[state_tuple] = action
-                    changer = new_state_tuple
 
-                # print("Agent deck: ", agent_deck, "Opponent deck: ", opponent_deck)
-                # Debugging: Print step details
-                # print(f"State: {state}, Action: {action}, Reward: {reward}, "
-                #       f"New State: {new_state_tuple}, Value: {action_value}")
-
-            # print(f"Scenario: {state}, State: {state_tuple}, Changer: {changer}, New v: {best_value}")
             V[state_tuple] = best_value
-            # if abs(v - V[state_tuple]) > delta:
-            #     print("Here exceeded", "Diff:", abs(v - V[state_tuple]), "Scenario:", state, "State:", state_tuple, "Original v:", v, "Modified", V[state_tuple],"Cnt",cnt, "Changer:", changer)
+            # print(state_tuple)
             delta = max(delta, abs(v - V[state_tuple]))
 
-        
+            # Randomly select 100 states for tracking after state_tuple is created
+            if len(tracked_states) < n_states_to_track and state_tuple not in tracked_states and len(list(state_tuple[0])) > 3:
+                tracked_states.append(state_tuple)
+                tracked_values[state_tuple] = []
+
+            # Store the value of the tracked states at this iteration
+            if state_tuple in tracked_states:
+                tracked_values[state_tuple].append(V[state_tuple])
+
         print("Delta: ", delta)
-        if delta < theta or cnt > 400:
-            print("Cnt: ", cnt, "Delta: ", delta)
+        # this limit cnt > n_iterations is not part of algorithm and is never reached, however it is added to avoid infinite loop
+        if delta < theta or cnt > n_iterations:
+            print("Iterations: ", cnt, "Delta: ", delta)
             break
-        
-        # return V, policy
-        
-    return V, policy
+
+    return V, policy, tracked_values
+
+
+def plot_convergence(tracked_values):
+    
+    """
+    Plot the convergence of value function for 100 tracked states.
+    """
+    plt.figure(figsize=(10, 6))
+    for state, values in tracked_values.items():
+        plt.plot(values, label=f'State: {state}', alpha=0.8)
+        print(f"State: {state}, Values: {values}")
+
+    plt.xlabel('Iterations')
+    plt.ylabel('Value')
+    plt.title(
+        'Convergence of Value Function over Iterations for 100 Randomly Selected States')
+    plt.grid(True)
+    plt.show()
 
 
 def value_iteration_main(n=10, gamma=0.8, theta=1e-1):
     env = CardGameEnv(n)
-    V, policy = value_iteration(env, gamma=gamma, theta=theta)
+    V, policy, tracked_values = value_iteration(
+        env, gamma=gamma, theta=theta, n_iterations=500, n_states_to_track=10)
 
     print("Optimal Value Function:")
     for state, value in V.items():
@@ -114,6 +139,11 @@ def value_iteration_main(n=10, gamma=0.8, theta=1e-1):
     for state, action in policy.items():
         print(f"State: {state}, Action: {action}")
 
+    # Plot the convergence of value function
+    plot_convergence(tracked_values)
+
 
 if __name__ == "__main__":
     value_iteration_main()
+
+

@@ -1,3 +1,7 @@
+# Roll: 20CS30062
+# CAV1
+
+
 from CardGameEnv import CardGameEnv
 from copy import deepcopy
 import random
@@ -71,7 +75,7 @@ def simulate_main(use_value_iteration=True, n=8, gamma=1.0, num_episodes=1000, a
     if use_value_iteration:
         # Run Value Iteration and get the optimal policy
         print("Running Value Iteration...")
-        V_vi, policy_vi = value_iteration(env, gamma=gamma)
+        V_vi, policy_vi, _ = value_iteration(env, gamma=gamma)
         print("\nSimulating game using Value Iteration policy:")
         total_reward = simulate_game(
             env, policy=policy_vi, use_value_iteration=True, seed=seed)
@@ -80,7 +84,7 @@ def simulate_main(use_value_iteration=True, n=8, gamma=1.0, num_episodes=1000, a
         # Run TD(0) learning and get the estimated value function
         print("Running TD(0) Learning...")
         # print(type())
-        V_td, _ = td_zero(env, num_episodes=num_episodes,
+        V_td, _, _ = td_zero(env, num_episodes=num_episodes,
                        alpha=alpha, gamma=gamma)
         # print(type(V_td))
         print("\nSimulating game using TD(0) value function:")
@@ -91,7 +95,7 @@ def simulate_main(use_value_iteration=True, n=8, gamma=1.0, num_episodes=1000, a
 
 if __name__ == "__main__":
     seed = random.randint(0, 1000)
-    n = 6
+    n = 10
     simulate_main(use_value_iteration=True, n=n, gamma=1.0,
                   num_episodes=1000, alpha=0.1, seed=seed)
     simulate_main(use_value_iteration=False, n=n, gamma=1.0,
