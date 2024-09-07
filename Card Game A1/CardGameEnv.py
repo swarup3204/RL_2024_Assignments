@@ -1,11 +1,10 @@
 import random
 from gym import Env
-from collections import defaultdict
 
 
 class CardGameEnv(Env):
     """
-    Custom Environment for the Card Game combined with Rock-Paper-Scissors.
+    Custom Environment for the Card Game where the opponent plays the top card from their deck.
     """
 
     def __init__(self, n=10, seed=None):
@@ -14,7 +13,8 @@ class CardGameEnv(Env):
         """
         super(CardGameEnv, self).__init__()
         self.n = n
-        self.state = {"agent_deck": [], "opponent_deck": [], "rps_res": 0}
+        self.state = {"agent_deck": [], "opponent_card_shown": 0}
+        self.opponent_deck = []  # Keep track of opponent's deck
         self.seed(seed)
 
     def seed(self, seed=None):
@@ -25,29 +25,22 @@ class CardGameEnv(Env):
 
     def step(self, action):
         """
-        Agent takes an action (selects a card) and gets a reward.
+        Agent takes an action (selects a card) and gets a reward based on comparison to opponent's card.
         """
         agent_deck = self.state['agent_deck']
-        opponent_deck = self.state['opponent_deck']
+        agent_card = agent_deck.pop(action)  # Select the agent's card
 
-        # Select the agent's card based on the action
-        agent_card = agent_deck.pop(action)
-
-        # Select the opponent's top card
-        opponent_card = opponent_deck.pop(0)
-
-        # Calculate the reward
-        reward = 1 if agent_card > opponent_card else -1
+        opponent_card = self.opponent_deck.pop(0)  # Take the top opponent card
+        reward = 1 if agent_card > opponent_card else -1  # Compare cards
 
         # Update the state
         self.state = {
             'agent_deck': agent_deck,
-            'opponent_deck': opponent_deck,
-            'rps_res': random.choice([0, 1])
+            'opponent_card_shown': self.opponent_deck[0] if len(self.opponent_deck) > 0 else -1 # Compare cards
         }
 
-        # Game is done when all opponent cards are played
-        done = (len(opponent_deck) == 0)
+        # Game ends when opponent's deck is empty
+        done = (len(self.opponent_deck) == 0)
         return self.state, reward, done
 
     def reset(self):
@@ -57,16 +50,17 @@ class CardGameEnv(Env):
         all_cards = list(range(1, self.n + 1))
         self.rng.shuffle(all_cards)
 
+        self.opponent_deck = all_cards[:self.n // 2]  # Opponent deck
         self.state = {
-            'agent_deck': sorted(all_cards[self.n // 2:]),
-            'opponent_deck': all_cards[:self.n // 2],
-            'rps_res': self.rng.choice([0, 1])
+            'agent_deck': sorted(all_cards[self.n // 2:]),  # Agent deck
+            # Show first opponent card
+            'opponent_card_shown': self.opponent_deck[0]
         }
+
         return self.state
 
     def render(self):
         """
         Print the current state of the game.
         """
-        print(f"Agent Deck: {self.state['agent_deck']}, Opponent Deck: {
-              self.state['opponent_deck']}, RPS Result: {self.state['rps_res']}")
+        print(f"Agent Deck: {self.state['agent_deck']}, Opponent Deck: {self.opponent_deck}, Opponent Card Shown: {self.state['opponent_card_shown']}")

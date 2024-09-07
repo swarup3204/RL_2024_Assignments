@@ -1,116 +1,92 @@
+import matplotlib.pyplot as plt
+import random
 from collections import defaultdict
 from copy import deepcopy
 from CardGameEnv import CardGameEnv
-import random
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 
-def td_zero(env, num_episodes=10000, alpha=0.2, gamma=1.0, heatmap_interval=2000):
+def td_zero(env, num_episodes=10000, alpha=0.2, gamma=0.9):
     """
-    TD(0) algorithm for value function estimation with reward tracking and heatmap visualization.
+    TD(0) algorithm for value function estimation with reward tracking.
     """
     V = defaultdict(float)
-    env.seed(random.randint(0, num_episodes))
-
-    rewards_per_episode = []  # To track rewards per episode
-    # To store value function for heatmaps every `heatmap_interval` episodes
-    heatmap_snapshots = {}
+    all_rewards = {}
 
     for episode in range(1, num_episodes + 1):
+        seed = random.randint(0, num_episodes)
+        env.seed(seed)
         state = deepcopy(env.reset())
         done = False
-        episode_reward = 0  # Track cumulative reward for the episode
+        episode_reward = 0
 
         while not done:
             agent_deck = state['agent_deck']
             state_tuple = (tuple(state['agent_deck']),
-                           tuple(state['opponent_deck']),
-                           state['rps_res'])
+                           state['opponent_card_shown'])
 
             action = random.randint(0, len(agent_deck) - 1)
             new_state, reward, done = env.step(action)
-            episode_reward += reward  # Accumulate reward for the episode
+            episode_reward += reward
 
-            new_state_tuple = (tuple(new_state['agent_deck']),
-                               tuple(new_state['opponent_deck']),
-                               new_state['rps_res'])
+            new_state_tuple = (
+                tuple(new_state['agent_deck']), new_state['opponent_card_shown'])
+
+            if done:
+                V[new_state_tuple] = 0
 
             V[state_tuple] += alpha * \
                 (reward + gamma * V.get(new_state_tuple, 0) - V.get(state_tuple, 0))
             state = deepcopy(new_state)
-        
-        if episode % 100 == 0:    
-            rewards_per_episode.append(episode_reward)
 
-        # Capture value function snapshots for heatmap every `heatmap_interval` episodes
-        if episode % heatmap_interval == 0:
-            heatmap_snapshots[episode] = deepcopy(V)
+        # Store rewards for each episode under its seed
+        if all_rewards.get(seed) is None:
+            all_rewards[seed] = [reward]
+        else:
+            all_rewards[seed].append(episode_reward)
 
-    return V, rewards_per_episode, heatmap_snapshots
+    return V, all_rewards
 
 
-def plot_rewards(rewards_per_episode):
+def plot_top_n_episodes_rewards(all_rewards, top_n=5):
     """
-    Plot the reward per episode to visualize the convergence of the algorithm.
+    Plot the rewards of the top N episodes with the maximum length of rewards.
     """
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(len(rewards_per_episode)), rewards_per_episode,
-             label="Reward per Episode", color='b')
-    plt.xlabel("Episodes")
-    plt.ylabel("Cumulative Reward")
-    plt.title("Reward per Episode over Time")
+    # Sort episodes by the length of rewards in descending order
+    sorted_episodes = sorted(
+        all_rewards.items(), key=lambda x: len(x[1]), reverse=True)
+
+    # Select the top N episodes with the longest lengths
+    top_episodes = sorted_episodes[:top_n]
+
+    plt.figure(figsize=(12, 8))
+
+    # Plot rewards for each of the top N episodes
+    for i, (seed, rewards) in enumerate(top_episodes):
+        plt.plot(range(len(rewards)), rewards, marker='o', linestyle='-',
+                 label=f'Episode {seed} (Length: {len(rewards)})')
+
+    plt.title(f"Rewards Over Time for Top {top_n} Longest Episodes")
+    plt.xlabel("Step")
+    plt.ylabel("Reward")
     plt.legend()
     plt.grid(True)
     plt.show()
 
 
-def plot_heatmap(V, title):
-    """
-    Plot a heatmap to visualize the value function.
-    """
-    # Convert the value function (V) into a matrix-like structure
-    states = list(V.keys())
-    agent_decks = list([s[0] for s in states])
-    opponent_decks = list([s[1] for s in states])
-
-    heatmap_matrix = []
-    for agent_deck in agent_decks:
-        row = []
-        for opponent_deck in opponent_decks:
-            state1 = (agent_deck, opponent_deck, 0)
-            state2 = (agent_deck, opponent_deck, 1)
-            max_v = max(V.get(state1,0), V.get(state2,0))
-            # Default to 0 if the state is not in V
-            row.append(max_v)
-        heatmap_matrix.append(row)
-
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(heatmap_matrix, annot=False, cmap="coolwarm", cbar=True)
-    plt.title(title)
-    plt.xlabel("Opponent Decks")
-    plt.ylabel("Agent Decks")
-    plt.show()
-
-
-def td_zero_main(n=8, num_episodes=10000, alpha=0.1, gamma=1.0, heatmap_interval=2000):
+def td_zero_main(n=8, num_episodes=100000, alpha=0.2, gamma=0.9):
     env = CardGameEnv(n)
 
-    # Run TD(0) and get the value function, rewards, and heatmap snapshots
-    V, rewards_per_episode, heatmap_snapshots = td_zero(
-        env, num_episodes=num_episodes, alpha=alpha, gamma=gamma, heatmap_interval=heatmap_interval
+    # Run TD(0) and get the value function and rewards for all episodes
+    V, all_rewards = td_zero(
+        env, num_episodes=num_episodes, alpha=alpha, gamma=gamma
     )
 
     print("Final Estimated Value Function:")
     for state, value in V.items():
         print(f"State: {state}, Value: {value}")
 
-    # Plot reward per episode to show convergence
-    plot_rewards(rewards_per_episode)
-
-    # Generate heatmaps every `heatmap_interval` episodes
-    for episode, V_snapshot in heatmap_snapshots.items():
-        plot_heatmap(V_snapshot, title=f"Value Function Heatmap at {episode} Episodes")
+    # Plot rewards for the top 5 episodes with the maximum length
+    plot_top_n_episodes_rewards(all_rewards, top_n=5)
 
 
 if __name__ == "__main__":

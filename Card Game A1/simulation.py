@@ -1,17 +1,12 @@
 from CardGameEnv import CardGameEnv
-import random
 from copy import deepcopy
+import random
 from value_iteration import value_iteration
 from td_learning import td_zero
-
 
 def simulate_game(env, policy=None, use_value_iteration=True, value_function=None, seed=42):
     """
     Simulate a game using the value iteration policy or TD(0)-learned value function.
-    - use_value_iteration: if True, use the policy generated from Value Iteration.
-      If False, use the learned values from TD(0).
-    - policy: Policy from Value Iteration (if use_value_iteration=True).
-    - value_function: Value function from TD(0) (if use_value_iteration=False).
     """
     env.seed(seed)
     state = env.reset()
@@ -21,28 +16,23 @@ def simulate_game(env, policy=None, use_value_iteration=True, value_function=Non
     while not done:
         env.render()
         state_tuple = (tuple(state['agent_deck']),
-                       tuple(state['opponent_deck']),
-                       state['rps_res'])
+                       state['opponent_card_shown'])
 
         if use_value_iteration:
-            # Use the optimal action from Value Iteration policy
             action = policy.get(state_tuple, random.choice(
                 range(len(state['agent_deck']))))
         else:
-            # Use TD(0) learned value function to select the best action
             best_action = None
             best_value = float('-inf')
 
             for action in range(len(state['agent_deck'])):
-                # Simulate the next state to evaluate the action
                 env_copy = deepcopy(env)
                 new_state, _, _ = env_copy.step(action)
-                new_state_tuple = (tuple(new_state['agent_deck']),
-                                   tuple(new_state['opponent_deck']),
-                                   new_state['rps_res'])
-                action_value = value_function.get(new_state_tuple, 0)
+                new_state_tuple = (
+                    tuple(new_state['agent_deck']), new_state['opponent_card_shown'])
+                action_value = value_function.get(
+                    new_state_tuple, 0)
 
-                # Select action with the highest expected value
                 if action_value > best_value:
                     best_value = action_value
                     best_action = action
@@ -50,17 +40,19 @@ def simulate_game(env, policy=None, use_value_iteration=True, value_function=Non
             action = best_action if best_action is not None else random.choice(
                 range(len(state['agent_deck'])))
 
-        # Agent plays the chosen card
-        agent_card = state['agent_deck'][action]
-        opponent_card = state['opponent_deck'][0]
-
-        # Take a step in the environment
         state, reward, done = env.step(action)
+        if reward == 1:
+            print("Agent wins round!")
+        else:    
+            print("Opponent wins round!")
         total_reward += reward
 
-        print(f"Agent chose: {agent_card}, Opponent chose: {
-              opponent_card}, Reward: {reward}")
-
+    if total_reward == 0:
+        print("Game ends in a tie!")
+    elif total_reward > 0:
+        print("Agent wins the game!")
+    else:
+        print("Opponent wins the game!")
     return total_reward
 
 
@@ -87,8 +79,10 @@ def simulate_main(use_value_iteration=True, n=8, gamma=1.0, num_episodes=1000, a
     else:
         # Run TD(0) learning and get the estimated value function
         print("Running TD(0) Learning...")
-        V_td = td_zero(env, num_episodes=num_episodes,
+        # print(type())
+        V_td, _ = td_zero(env, num_episodes=num_episodes,
                        alpha=alpha, gamma=gamma)
+        # print(type(V_td))
         print("\nSimulating game using TD(0) value function:")
         total_reward = simulate_game(
             env, use_value_iteration=False, value_function=V_td, seed=seed)
@@ -97,7 +91,7 @@ def simulate_main(use_value_iteration=True, n=8, gamma=1.0, num_episodes=1000, a
 
 if __name__ == "__main__":
     seed = random.randint(0, 1000)
-    n = 8
+    n = 6
     simulate_main(use_value_iteration=True, n=n, gamma=1.0,
                   num_episodes=1000, alpha=0.1, seed=seed)
     simulate_main(use_value_iteration=False, n=n, gamma=1.0,
